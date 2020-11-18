@@ -115,8 +115,11 @@ struct UniformBufferObject {
 	glm::mat4 proj;
 };
 
-class VulkanImpl {
+class VulkanImpl { //A bulk of the work
 public:
+	std::vector<VulkanModel> models;
+
+
 	void run() {
 		initWindow();
 		initVulkan();
@@ -177,7 +180,7 @@ private:
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> imagesInFlight;
 
-	std::vector<VulkanModel> models;
+	
 
 
 	std::vector<VkBuffer> uniformBuffers;
@@ -199,6 +202,9 @@ private:
 	}
 
 	void initVulkan() {
+		
+
+
 		createInstance();
 		setupDebugMessenger();
 		createSurface();
@@ -252,7 +258,6 @@ private:
 
 		for (int i = 0; i < swapChainImages.size(); i++) {
 			for (int j = 0; j < models.size(); j++) {
-				models[j].update();
 				updateUniformBuffer(j + (i * models.size()), &(models[j].getTransform()), &cameraFacing);
 			}
 		}
@@ -1330,14 +1335,20 @@ private:
 		VulkanModel questionModel(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		VulkanModel model2(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		VulkanModel model3(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		VulkanModel model4(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		VulkanModel model5(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 
 		questionModel.loadModel();
 		model2.loadModel();
 		model3.loadModel();
+		model4.loadModel();
+		model5.loadModel();
 		
 		models.push_back(questionModel);
 		models.push_back(model2);
 		models.push_back(model3);
+		models.push_back(model4);
+		models.push_back(model5);
 
 		for (int i = 0; i != models.size(); i++) {
 			models[i].translate(glm::vec3(0, 0, i * 2));

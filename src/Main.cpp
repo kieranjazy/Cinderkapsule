@@ -3,6 +3,8 @@
 int main(int argc, char* argv[])
 {
 	VulkanImpl vulkan;
+	PhysicsImpl physics;
+	PhysicsScene pScene;
 	SoundManager soundManager;
 	Camera camera;
 
@@ -12,10 +14,14 @@ int main(int argc, char* argv[])
 		vulkan.run();
 		soundManager.start();
 		camera.setup();
+		physics.init();
+		pScene.setPhysicsImpl(&physics);
+		pScene.testInit();
+		pScene.addDefault();
 		//soundThr.join();
 		//vulkanThr.join();
 
-		gameLoop(&vulkan, &soundManager, &camera);
+		gameLoop(&vulkan, &soundManager, &camera, &pScene);
 	}
 	catch (const std::exception & e) {
 		std::cerr << e.what() << std::endl;
@@ -25,7 +31,7 @@ int main(int argc, char* argv[])
 	return EXIT_SUCCESS;
 }
 
-void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera) {
+void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, PhysicsScene* pScene) {
 	SDL_Event event;
 
 	//Time
@@ -43,7 +49,7 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera) {
 	//
 
 	float speed = 20.0f;
-	float mouseSensitivity = 2.0f;
+	float mouseSensitivity = 5.0f;
 
 	while (active) {
 
@@ -67,7 +73,7 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera) {
 		while (accumulatedTime >= timestep) {
 			while (SDL_PollEvent(&event)) {
 				camera->updateTick();
-
+				
 				switch (event.type) {
 				case SDL_KEYDOWN:
 					if (event.key.keysym.sym == SDLK_ESCAPE)
@@ -77,7 +83,7 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera) {
 						camera->translate(glm::vec3(deltaTime, 0.0f, 0.0f)); //Change
 
 					if (event.key.keysym.sym == SDLK_w) 
-						camera->moveInCameraDir(glm::vec3(-deltaTime, 0.0f, 0.0f), deltaTime);
+						camera->moveInCameraDir(glm::vec3(-deltaTime, 0.0f, 0.0f), deltaTime * 5);
 
 					if (event.key.keysym.sym == SDLK_a) 
 						camera->translate(glm::vec3(0.0f, -deltaTime, 0.0f)); //Change
@@ -113,5 +119,6 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera) {
 
 	vulkan->cleanupPublic();
 	soundManager->end();
-
+	pScene->release();
+	PxGetPhysics().release();
 }

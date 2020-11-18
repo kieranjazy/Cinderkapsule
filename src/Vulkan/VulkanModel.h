@@ -7,13 +7,16 @@
 #include <string>
 #include "VulkanBuffer.h"
 #include "VulkanTexture.h"
-
+#include "PxPhysicsAPI.h"
 
 #include <tiny_obj_loader.h>
 
-
 #include <memory>
 #include <stdexcept>
+#include "common/PxBase.h"
+#include "PxRigidActor.h"
+
+using namespace physx;
 
 
 class VulkanModel { //could I have just used inheritance from VulkanImpl...
@@ -21,8 +24,10 @@ public:
 	glm::vec3 getPosition();
 	glm::quat getRotation();
 
-	void update();
+	void setPosition(glm::vec3 pos);
+	void setTransform(glm::mat4 transform);
 
+	void update();
 	void rotate(glm::vec3 rotateVec, float angle);
 	void translate(glm::vec3 translateVec);
 
@@ -32,10 +37,9 @@ public:
 	glm::mat4 getTransform();
 	int getModelIndicesSize();
 	int getModelVerticesSize();
-	VkImageView getImageView();
+	VkImageView getImageView(); //Change to return reference
 
 	VkBuffer& getVertexBuffer();
-
 	VkBuffer& getIndexBuffer();
 
 	void moveUp();
@@ -44,9 +48,16 @@ public:
 	void loadModel();
 
 	VulkanModel(const std::string modelLocation, const std::string tex, VkDevice& dev, VkQueue& graphics, VkCommandPool& comPool, VkPhysicalDevice& physicalDev) : 
-	modelLoc(modelLocation), texturePath(tex), device(&dev), graphicsQueue(&graphics), commandPool(&comPool), physicalDevice(&physicalDev) {
+	modelLoc(modelLocation), texturePath(tex), device(&dev), graphicsQueue(&graphics), commandPool(&comPool), physicalDevice(&physicalDev){
 		worldTransform = glm::mat4(1.0f);
 		localTransform = glm::mat4(0.0f);
+
+		//physicsObject = PxActor
+
+
+		//physicsObject = PxGetPhysics().createRigidDynamic(1.0f);
+
+
 		
 		//setupTextures();
 
@@ -97,6 +108,8 @@ private:
 	glm::mat4 worldTransform;
 
 	uint32_t modelIndicesSize, modelVerticesSize;
+
+	PxRigidDynamic* physicsObject;
 
 	void setupBuffers(std::vector<Vertex>& verts, std::vector<uint32_t>& indices) {
 		modelIndicesSize = static_cast<uint32_t>(indices.size());

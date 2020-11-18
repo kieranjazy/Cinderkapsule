@@ -3,10 +3,17 @@
 
 void VulkanModel::update() {
 	//rotate(glm::vec3(-0.5, 0, -1), M_PI / 360);
+	setPosition(glm::vec3(physicsObject->getGlobalPose().p.x, physicsObject->getGlobalPose().p.y, physicsObject->getGlobalPose().p.z));
 }
 
 glm::vec3 VulkanModel::getPosition() {
 	return glm::vec3(worldTransform[3][0], worldTransform[3][1], worldTransform[3][2]);
+}
+
+void VulkanModel::setPosition(glm::vec3 pos) {
+	worldTransform[3][0] = pos.x;
+	worldTransform[3][1] = pos.y;
+	worldTransform[3][2] = pos.z;
 }
 
 glm::quat VulkanModel::getRotation() {
@@ -15,6 +22,10 @@ glm::quat VulkanModel::getRotation() {
 
 glm::mat4 VulkanModel::getTransform() {
 	return worldTransform;
+}
+
+void VulkanModel::setTransform(glm::mat4 transform) {
+	worldTransform = transform; //mad lad
 }
 
 void VulkanModel::rotate(glm::vec3 rotateVec, float angle) { //break the vector into x and z rotation on local, and y on world
@@ -37,7 +48,6 @@ std::string VulkanModel::getTextureLocation() {
 	return texturePath;
 }
 
-
 VkBuffer& VulkanModel::getVertexBuffer() {
 	return vertexBuffer;
 }
@@ -45,11 +55,6 @@ VkBuffer& VulkanModel::getVertexBuffer() {
 VkBuffer& VulkanModel::getIndexBuffer() {
 	return indexBuffer;
 }
-
-
-
-
-
 
 int VulkanModel::getModelIndicesSize() {
 	return modelIndicesSize;
