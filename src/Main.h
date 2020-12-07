@@ -9,4 +9,4 @@
 
 #include "Vulkan\VulkanImpl.h"
 
-void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, PhysicsScene* pScene);
+void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, PhysicsImpl* physics);

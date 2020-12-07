@@ -4,7 +4,10 @@
 #include "vulkan/VulkanModel.h"
 
 struct PhysicsScene::impl {
-	~impl() = default;
+	~impl() {
+		delete cpuDispatcher;
+		scene->release();
+	}
 
 	PxScene* scene;
 	PxCpuDispatcher* cpuDispatcher;
@@ -15,14 +18,18 @@ struct PhysicsScene::impl {
 };
 
 
-PhysicsScene::PhysicsScene() : pImpl(new impl()) {}
+PhysicsScene::PhysicsScene() : pImpl(new impl()) {
+	testInit();
+}
 
-PhysicsScene::PhysicsScene(PhysicsImpl& p) : pImpl(new impl()), physics(&p) {}
-PhysicsScene::~PhysicsScene() = default;
+PhysicsScene::~PhysicsScene() {
+
+	pImpl.release();
+}
 
 void PhysicsScene::testInit() {
 	PxSceneDesc sd(PxGetPhysics().getTolerancesScale());
-	sd.gravity = PxVec3(0.0f, -9.81f, 0.0f);
+	sd.gravity = PxVec3(0.0f, 0.0f, -9.81f);
 
 	pImpl->cpuDispatcher = PxDefaultCpuDispatcherCreate(pImpl->numThreads);
 	if (!pImpl->cpuDispatcher)
@@ -33,6 +40,7 @@ void PhysicsScene::testInit() {
 	//sd.cudaContextManager = gCuda
 
 	pImpl->scene = PxGetPhysics().createScene(sd);
+	pImpl->scene->setVisualizationParameter(PxVisualizationParameter::eACTOR_AXES, 1.0f);
 	 /*
 	PxSphereGeometry geometry(1.0f);
 	PxMaterial* material = physics->createMaterial(0.0f, 0.0f, 0.0f);
@@ -74,18 +82,14 @@ void PhysicsScene::addDefault() {
 }
 
 void PhysicsScene::release() {
-	pImpl->scene->release();
+	//pImpl->scene->release();
 
-}
-
-void PhysicsScene::setPhysicsImpl(PhysicsImpl* p) {
-	physics = p;
 }
 
 PxScene* PhysicsScene::getScene() {
 	return pImpl->scene;
 }
 
-void PhysicsScene::addRigidBody(PxRigidDynamic* rb) {
-	pImpl->scene->addActor(*reinterpret_cast<PxActor*>(rb));
+void PhysicsScene::addRigidBody(PxRigidDynamic& rb) {
+	pImpl->scene->addActor(rb);
 }

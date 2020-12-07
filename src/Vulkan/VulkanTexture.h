@@ -8,3 +8,6 @@ void transitionImageLayout(VkImage& image, VkFormat format, VkImageLayout oldLay
 void copyBufferToImage(VkBuffer& buffer, VkImage& image, uint32_t width, uint32_t height, VkCommandPool& commandPool, VkDevice& device, VkQueue& graphicsQueue);
 VkImageView createImageView(VkImage& image, VkFormat format, VkImageAspectFlags aspectFlags, VkDevice& device);
 VkImageView createTextureImageView(VkImage& image, VkDevice& device);
+VkSampler createTextureSampler(VkDevice& device);
+
+//Make sampler function

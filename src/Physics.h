@@ -1,5 +1,6 @@
 #pragma once
 #include "PxPhysicsAPI.h"
+#include "PhysicsScene.h"
 #include <memory>
 
 class PhysicsImpl {	
@@ -13,8 +14,10 @@ public:
 	void release();
 
 	physx::PxTolerancesScale getTScale();
-	physx::PxScene* createScene(physx::PxSceneDesc sd);
 	physx::PxMaterial* createMaterial(float a, float b, float c);
+
+	void startScene();
+	PhysicsScene* getPhysicsScene();
 
 private:
 	struct impl;

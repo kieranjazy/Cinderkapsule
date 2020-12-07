@@ -1,5 +1,7 @@
 #include "Physics.h"
 #include <stdexcept>
+#include "PhysicsScene.h"
+#include <memory>
 
 using namespace physx;
 //#define _DEBUG
@@ -12,16 +14,25 @@ struct PhysicsImpl::impl {
 	PxPhysics* physics;
 	PxCooking* cooking;
 
-	PxScene* currentScene; //IMPLEMENT
+	std::unique_ptr<PhysicsScene> currentScene; //IMPLEMENT
 
 	PxTolerancesScale getPxTolerancesScale() {
 		return physics->getTolerancesScale();
 	}
 
+	void setCurrentScene() {
+		currentScene = std::make_unique<PhysicsScene>();
+		currentScene->testInit();
+	}
+
 };
 
-PhysicsImpl::PhysicsImpl() : pImpl(new impl()) {}
-PhysicsImpl::~PhysicsImpl() = default;
+PhysicsImpl::PhysicsImpl() : pImpl(new impl()) {
+}
+
+PhysicsImpl::~PhysicsImpl() {
+	release();
+}
 
 void PhysicsImpl::init() {
 	static PxDefaultErrorCallback gDefaultErrorCallback;
@@ -39,10 +50,11 @@ void PhysicsImpl::init() {
 	pImpl->pvd->connect(*transport, PxPvdInstrumentationFlag::eALL);
 
 	PxTolerancesScale scale;
-	scale.length = 100;
+	//scale.length = 100;
+	scale.length = 1;
 	scale.speed = 981;
 
-	pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, PxTolerancesScale(scale), recordMemoryAllocations, pImpl->pvd);
+	pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, pImpl->pvd);
 
 	if (!pImpl->physics) 
 		throw std::runtime_error("Physics create failed!");
@@ -56,13 +68,26 @@ void PhysicsImpl::init() {
 		throw std::runtime_error("Init extensions failed!");
 	}
 
+	pImpl->setCurrentScene();
+
 }
+
+void PhysicsImpl::startScene() {
+	pImpl->setCurrentScene();
+}
+
 
 void PhysicsImpl::release() {
 	PxCloseExtensions();
+	pImpl->currentScene->release();
 	pImpl->cooking->release();
-	pImpl->physics->release();
 	pImpl->pvd->release();
+	pImpl->physics->release();
 	pImpl->foundation->release();
+	//pImpl->physics->release();
+}
+
+PhysicsScene* PhysicsImpl::getPhysicsScene() {
+	return pImpl->currentScene.get();
 }
 

@@ -12,16 +12,13 @@ public:
 	void addDefault();
 
 	void release();
-	void setPhysicsImpl(PhysicsImpl* p);
 
 	PxScene* getScene();
 
 	PhysicsScene();
-	PhysicsScene(PhysicsImpl& p);
 	~PhysicsScene();
 
-	PhysicsImpl* physics = nullptr;
-	void addRigidBody(PxRigidDynamic* rb);
+	void addRigidBody(PxRigidDynamic& rb);
 private:
 	struct impl;
 	std::unique_ptr<impl> pImpl;

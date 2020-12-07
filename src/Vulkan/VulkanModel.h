@@ -38,9 +38,12 @@ public:
 	int getModelIndicesSize();
 	int getModelVerticesSize();
 	VkImageView getImageView(); //Change to return reference
+	VkSampler getTextureSampler();
 
 	VkBuffer& getVertexBuffer();
 	VkBuffer& getIndexBuffer();
+
+	PxRigidDynamic& getRigidDynamicActor();
 
 	void moveUp();
 	void moveDown();
@@ -53,14 +56,27 @@ public:
 		localTransform = glm::mat4(0.0f);
 
 		//physicsObject = PxActor
-
-
-		//physicsObject = PxGetPhysics().createRigidDynamic(1.0f);
-
+		//physicsShape = PxRigidActorExt::createExclusiveShape(*physicsObject, PxBoxGeometry(0.125f, 0.125f, 0.125f), *physicsMaterial);
+		//physicsObject->attachShape(*physicsShape);
+		//physicsObject->setMass(1.0f);
+		
+		//PxRigidBodyExt::updateMassAndInertia(*physicsObject, 1.0f);
+		//physicsObject = PxGetPhysics().createRigidDynamic()
 
 		
 		//setupTextures();
 
+	}
+
+	void updateCustomRigidDynamic(float hx, float hy, float hz) {
+		physicsObject->detachShape(*physicsShape);
+		physicsShape = PxRigidActorExt::createExclusiveShape(*physicsObject, PxBoxGeometry(hx, hy, hz), *physicsMaterial);
+		physicsObject->attachShape(*physicsShape);
+	}
+
+	void setupPhysicsObject() {
+		physicsMaterial = PxGetPhysics().createMaterial(1.0f, 1.0f, 0.0f);
+		physicsObject = PxGetPhysics().createRigidDynamic(PxTransform(PxVec3(getPosition()[0], getPosition()[1], getPosition()[2]))); //Setting this BEFORE we set position of objects doink!!!
 	}
 
 	//~VulkanModel() {}
@@ -71,6 +87,8 @@ public:
 
 		vkDestroyBuffer(*device, indexBuffer, nullptr);
 		vkFreeMemory(*device, indexBufferMemory, nullptr);
+
+		vkDestroySampler(*device, textureSampler, nullptr);
 
 		vkDestroyImage(*device, texture, nullptr);
 
@@ -99,10 +117,14 @@ private:
 	VkDeviceMemory vertexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
 
+
 	VkDeviceMemory textureImageMemory;
 
 	VkImage texture;
 	VkImageView textureImageView;
+
+	VkSampler textureSampler;
+	//Add vulkan texture sampler per model
 
 	glm::mat4 localTransform;
 	glm::mat4 worldTransform;
@@ -110,6 +132,8 @@ private:
 	uint32_t modelIndicesSize, modelVerticesSize;
 
 	PxRigidDynamic* physicsObject;
+	PxShape* physicsShape;
+	PxMaterial* physicsMaterial;
 
 	void setupBuffers(std::vector<Vertex>& verts, std::vector<uint32_t>& indices) {
 		modelIndicesSize = static_cast<uint32_t>(indices.size());
@@ -125,6 +149,7 @@ private:
 	void setupTextures() {
 		texture = createTextureImage(texturePath, *device, *physicalDevice, textureImageMemory, *commandPool, *graphicsQueue);
 		textureImageView = createTextureImageView(texture, *device);
+		textureSampler = createTextureSampler(*device);
 	}
 	
 

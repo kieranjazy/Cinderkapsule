@@ -189,7 +189,7 @@ private:
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
 
-	VkSampler textureSampler;
+	VkSampler textureSampler; // ?? ?? ? ? ? ?? ? ????? 
 
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
@@ -198,7 +198,7 @@ private:
 
 	void initWindow() {
 		SDL_Init(SDL_INIT_VIDEO);
-		window = SDL_CreateWindow("Main Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+		window = SDL_CreateWindow("Main Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 2560, 1440, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 	}
 
 	void initVulkan() {
@@ -256,11 +256,13 @@ private:
 
 		imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
+		
 		for (int i = 0; i < swapChainImages.size(); i++) {
 			for (int j = 0; j < models.size(); j++) {
-				updateUniformBuffer(j + (i * models.size()), &(models[j].getTransform()), &cameraFacing);
+				updateUniformBuffer(j + (i * models.size()), models[j].getTransform(), cameraFacing);
 			}
 		}
+		
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -310,12 +312,12 @@ private:
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 
-	void updateUniformBuffer(uint32_t currentImage, glm::mat4* modelPos, glm::mat4* view) { //FIX THIS
+	void updateUniformBuffer(uint32_t currentImage, const glm::mat4& modelPos, const glm::mat4& view) { //FIX THIS
 		UniformBufferObject ubo{};
-		ubo.model = *modelPos; //DONT TOUCH AGAIN
-		ubo.view = *view;
+		ubo.model = modelPos; //DONT TOUCH AGAIN
+		ubo.view = view;
 
-		ubo.proj = glm::perspective(glm::radians(70.0f), 800.0f / 600.0f, 0.1f, 100.0f); //swapchain extent for height width
+		ubo.proj = glm::perspective(glm::radians(70.0f), 2560 / 1440.0f, 0.1f, 100.0f); //swapchain extent for height width
 
 		ubo.proj[1][1] *= -1;
 
@@ -366,7 +368,7 @@ private:
 
 		VkApplicationInfo appInfo{};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pApplicationName = "Hello Triangle";
+		appInfo.pApplicationName = "Cinder";
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.pEngineName = "Cinderkapsule";
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -856,14 +858,24 @@ private:
 
 			
 			VkDeviceSize offsets[] = { 0 };
+			
 
-			for (size_t k = 0; k != models.size(); k++) {
+			//Why does this code ignore swapchain offsets?
+			for (size_t k = 0; k < models.size(); k++) {
+				uint32_t offset = k + (i * models.size());
+
 				vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &models[k].getVertexBuffer(), offsets);
 				vkCmdBindIndexBuffer(commandBuffers[i], models[k].getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i + k], 0, nullptr);
+				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[offset], 0, nullptr); //COME BACK TO TODO
 				vkCmdDrawIndexed(commandBuffers[i], models[k].getModelIndicesSize(), 1, 0, 0, 0);
 			}
+			
+
+
+
+
+
 
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -971,15 +983,15 @@ private:
 				VkDescriptorBufferInfo bufferInfo{};
 				bufferInfo.offset = 0;
 				bufferInfo.range = sizeof(UniformBufferObject);
-				bufferInfo.buffer = uniformBuffers[j + (i * (models.size() - 1))];
+				bufferInfo.buffer = uniformBuffers[j + (i * models.size())];
 
 				VkDescriptorImageInfo imageInfo{};
 				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				imageInfo.imageView = models[j].getImageView();
-				imageInfo.sampler = textureSampler; //set these up
+				imageInfo.sampler = models[j].getTextureSampler(); //set these up :: FOUND THE PROBLEM
 
 				descWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descWrites[0].dstSet = descriptorSets[j + (i * (models.size() - 1))];
+				descWrites[0].dstSet = descriptorSets[j + (i * models.size())];
 				descWrites[0].dstBinding = 0;
 				descWrites[0].dstArrayElement = 0;
 				descWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -987,7 +999,7 @@ private:
 				descWrites[0].pBufferInfo = &bufferInfo;
 
 				descWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descWrites[1].dstSet = descriptorSets[j + (i * (models.size() - 1))];
+				descWrites[1].dstSet = descriptorSets[j + (i * models.size())];
 				descWrites[1].dstBinding = 1;
 				descWrites[1].dstArrayElement = 0;
 				descWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1335,23 +1347,31 @@ private:
 		VulkanModel questionModel(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		VulkanModel model2(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		VulkanModel model3(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
-		VulkanModel model4(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
-		VulkanModel model5(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
+
+		VulkanModel plank("PLANK.obj", "Material Base Color.png", device, graphicsQueue, commandPool, physicalDevice);
+
+
 
 		questionModel.loadModel();
 		model2.loadModel();
 		model3.loadModel();
-		model4.loadModel();
-		model5.loadModel();
+		plank.loadModel();
 		
 		models.push_back(questionModel);
 		models.push_back(model2);
 		models.push_back(model3);
-		models.push_back(model4);
-		models.push_back(model5);
+	    models.push_back(plank);
 
-		for (int i = 0; i != models.size(); i++) {
-			models[i].translate(glm::vec3(0, 0, i * 2));
+		for (int i = 0; i != models.size() - 1; i++) {
+			models[i].translate(glm::vec3(0, 0, i * 4));
+			models[i].setupPhysicsObject();
 		}
+
+		models[3].translate(glm::vec3(0, 0, -10));
+		
+		
+		models[3].setupPhysicsObject();
+		//models[3].updateCustomRigidDynamic(15, 15, 1);
+		models[3].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
 	}
 };

@@ -3,7 +3,10 @@
 
 void VulkanModel::update() {
 	//rotate(glm::vec3(-0.5, 0, -1), M_PI / 360);
-	setPosition(glm::vec3(physicsObject->getGlobalPose().p.x, physicsObject->getGlobalPose().p.y, physicsObject->getGlobalPose().p.z));
+	if (physicsObject)
+		setPosition(glm::vec3(physicsObject->getGlobalPose().p.x, physicsObject->getGlobalPose().p.y, physicsObject->getGlobalPose().p.z));
+	//physicsObject->setLinearVelocity(PxVec3(0.0f, 0.0f, -9.82f));
+	//physicsObject->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
 }
 
 glm::vec3 VulkanModel::getPosition() {
@@ -54,6 +57,10 @@ VkBuffer& VulkanModel::getVertexBuffer() {
 
 VkBuffer& VulkanModel::getIndexBuffer() {
 	return indexBuffer;
+}
+
+PxRigidDynamic& VulkanModel::getRigidDynamicActor() {
+	return *physicsObject;
 }
 
 int VulkanModel::getModelIndicesSize() {
@@ -121,4 +128,8 @@ void VulkanModel::loadModel() {
 
 VkImageView VulkanModel::getImageView() { //focus
 	return textureImageView;
+}
+
+VkSampler VulkanModel::getTextureSampler() {
+	return textureSampler;
 }
