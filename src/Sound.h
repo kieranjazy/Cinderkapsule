@@ -6,7 +6,7 @@ class SoundManager {
 public:
 	void start() {
 		init();
-		playbackSound();
+		//playbackSound();
 	}
 
 	void end() {

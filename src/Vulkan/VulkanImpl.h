@@ -1368,10 +1368,8 @@ private:
 		}
 
 		models[3].translate(glm::vec3(0, 0, -10));
-		
-		
 		models[3].setupPhysicsObject();
-		//models[3].updateCustomRigidDynamic(15, 15, 1);
 		models[3].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
+		models[3].getRigidDynamicActor().setMaxAngularVelocity(0.0f);
 	}
 };

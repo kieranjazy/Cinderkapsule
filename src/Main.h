@@ -9,4 +9,7 @@
 
 #include "Vulkan\VulkanImpl.h"
 
+
+
 void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, PhysicsImpl* physics);
+void handleInputs(Camera* camera, float deltaTime);

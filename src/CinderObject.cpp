@@ -1,5 +1,7 @@
-#include "CinderObject.h"
+//#include "CinderObject.h"
 
+
+/*
 CinderObject::CinderObject() {
 
 }
@@ -17,7 +19,7 @@ void CinderObject::update() {
 	//vkModel->setTransform(pActor->getGlobalPose());
 }
 
-
+*/
 
 
 

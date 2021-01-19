@@ -1,5 +1,10 @@
 #include "Main.h"
 
+#ifndef NDEBUG
+#define NDEBUG
+#endif
+
+
 int main(int argc, char* argv[])
 {
 	VulkanImpl vulkan;
@@ -57,7 +62,7 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, Ph
 	//
 
 	float speed = 20.0f;
-	float mouseSensitivity = 10.0f;
+	float mouseSensitivity = 30.0f;
 
 	while (active) {
 
@@ -79,12 +84,18 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, Ph
 		//
 
 		while (accumulatedTime >= timestep) {
+			for (size_t i = 0; i != vulkan->models.size(); i++) {
+				vulkan->models[i].update();
+			}
+
 			physics->getPhysicsScene()->getScene()->simulate(deltaTime);
 			physics->getPhysicsScene()->getScene()->fetchResults(true);
 
-			while (SDL_PollEvent(&event)) {
+			
+
+			while (SDL_PollEvent(&event) ) {
 				camera->updateTick();
-				
+				handleInputs(camera, deltaTime);
 				
 				
 				switch (event.type) {
@@ -96,7 +107,7 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, Ph
 						camera->translate(glm::vec3(deltaTime, 0.0f, 0.0f)); //Change
 
 					if (event.key.keysym.sym == SDLK_w) 
-						camera->moveInCameraDir(glm::vec3(-deltaTime, 0.0f, 0.0f), deltaTime * 20);
+						//camera->moveInCameraDir(glm::vec3(-1.0f, 0.0f, 0.0f), deltaTime * 30.0f);
 
 					if (event.key.keysym.sym == SDLK_a) 
 						camera->translate(glm::vec3(0.0f, -deltaTime, 0.0f)); //Change
@@ -138,13 +149,19 @@ void gameLoop(VulkanImpl* vulkan, SoundManager* soundManager, Camera* camera, Ph
 		}
 		*/
 
-		for (size_t i = 0; i != vulkan->models.size(); i++) {
-			vulkan->models[i].update();
-		}
+		
 	}
 
 	vulkan->cleanupPublic();
 	soundManager->end();
 	//pScene->release();
 	//PxGetPhysics().release();
+}
+
+void handleInputs(Camera* camera, float deltaTime) {
+	const Uint8* ks = SDL_GetKeyboardState(nullptr);
+	
+	if (ks[SDL_SCANCODE_W]) {
+		camera->moveInCameraDir(glm::vec3(-1.0f, 0.0f, 0.0f), (1.f/144.f));
+	}
 }

@@ -1,12 +1,23 @@
 #include "VulkanModel.h"
 #include <SDL_stdinc.h>
+#include <iostream>
+#include "glmWithPhysX.h"
 
+
+
+//CLEAN UP WHEN FUNCTIONAL
 void VulkanModel::update() {
-	//rotate(glm::vec3(-0.5, 0, -1), M_PI / 360);
-	if (physicsObject)
-		setPosition(glm::vec3(physicsObject->getGlobalPose().p.x, physicsObject->getGlobalPose().p.y, physicsObject->getGlobalPose().p.z));
-	//physicsObject->setLinearVelocity(PxVec3(0.0f, 0.0f, -9.82f));
-	//physicsObject->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
+	if (physicsObject) {
+		//setPosition(glm::vec3(physicsObject->getGlobalPose().p.x, physicsObject->getGlobalPose().p.y, physicsObject->getGlobalPose().p.z)); //Try to pass PxReal everywhere to avoid weird floating point errors TODO
+		//setRotation(glm::quat(physicsObject->getGlobalPose().q.w, physicsObject->getGlobalPose().q.x, physicsObject->getGlobalPose().q.y, physicsObject->getGlobalPose().q.z));
+		worldTransform = pMat4ToGMat4(physx::PxMat44(physicsObject->getGlobalPose()));
+		//float angle;
+		//physx::PxVec3 axis;
+
+		//physicsObject->getGlobalPose().q.toRadiansAndUnitAxis(angle, axis);
+		//setRotation(angle, glm::vec3(axis.x, axis.y, axis.z)); //Bottom object is getting hit slightly, slightly changes rotation, this gets interpreted as angular velocity and keeps rotating, fix
+		//If current object rotation != physX object rotation, rotate until they are equal then stop
+	}
 }
 
 glm::vec3 VulkanModel::getPosition() {
@@ -23,12 +34,18 @@ glm::quat VulkanModel::getRotation() {
 	return glm::quat_cast(worldTransform) * glm::quat_cast(localTransform);
 }
 
+void VulkanModel::setRotation(glm::quat qRot) {
+	//Try setting rotation manually :: quat to mat4
+	//worldTransform = glm::rotate(worldTransform, angle * 0.001f, axis); //Fix up 0.01 with tolerance scale
+	worldTransform = worldTransform * glm::toMat4(qRot);
+}
+
 glm::mat4 VulkanModel::getTransform() {
 	return worldTransform;
 }
 
 void VulkanModel::setTransform(glm::mat4 transform) {
-	worldTransform = transform; //mad lad
+	//worldTransform = transform; //mad lad
 }
 
 void VulkanModel::rotate(glm::vec3 rotateVec, float angle) { //break the vector into x and z rotation on local, and y on world
@@ -36,7 +53,7 @@ void VulkanModel::rotate(glm::vec3 rotateVec, float angle) { //break the vector 
 	//glm::vec3 world = glm::vec3(0, rotateVec.y, 0);
 
 	//localTransform = glm::rotate(localTransform, angle, local);
-	worldTransform = glm::rotate(worldTransform, angle, rotateVec);
+	//worldTransform = glm::rotate(worldTransform, angle, rotateVec);
 }
 
 void VulkanModel::translate(glm::vec3 translateVec) {
@@ -132,4 +149,48 @@ VkImageView VulkanModel::getImageView() { //focus
 
 VkSampler VulkanModel::getTextureSampler() {
 	return textureSampler;
+}
+
+glm::vec3 VulkanModel::getPhysXAABB() {
+	//This function will get half extents of an AABB by going through all the verts
+	//Verts >= 4
+	float maxX = vertices[0].pos.x,
+		maxY = vertices[0].pos.y,
+		maxZ = vertices[0].pos.z,
+		minX = vertices[1].pos.x,
+		minY = vertices[1].pos.y,
+		minZ = vertices[1].pos.z; //Init min and max variables to 1st and 2nd vertices, possible because v >= 4
+
+	for (const auto vert : vertices) {
+		//Go through all vertices, find out vertex value for when each co-ord (x, y, z) is at their maximum or minimum.
+		if (vert.pos.x > maxX) {
+			maxX = vert.pos.x;
+		}
+		else if (vert.pos.x < minX) {
+			minX = vert.pos.x;
+		}
+
+		if (vert.pos.y > maxY) {
+			maxY = vert.pos.y;
+		}
+		else if (vert.pos.y < minY) {
+			minY = vert.pos.y;
+		}
+
+		if (vert.pos.z > maxZ) {
+			maxZ = vert.pos.z;
+		}
+		else if (vert.pos.z < minZ) {
+			minZ = vert.pos.z;
+		}
+	}
+
+	glm::vec3 AABB(maxX - minX, maxY - minY, maxZ - minZ);
+	AABB /= 2; //For half extents wanted by PhysX TWEAK THIS
+
+	return AABB;
+}
+
+std::vector<Vertex>& VulkanModel::getVertices() {
+	return vertices;
 }

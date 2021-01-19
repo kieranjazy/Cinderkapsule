@@ -1,6 +1,7 @@
-#include "PxPhysicsAPI.h"
-#include "vulkan/VulkanModel.h"
+//#include "PxPhysicsAPI.h"
+//#include "vulkan/VulkanModel.h"
 
+/*
 
 class CinderObject {
 public:
@@ -17,3 +18,5 @@ private:
 	PxRigidDynamic* pActor;
 
 };
+
+*/

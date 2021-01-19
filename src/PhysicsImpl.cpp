@@ -2,15 +2,20 @@
 #include <stdexcept>
 #include "PhysicsScene.h"
 #include <memory>
-
 using namespace physx;
-//#define _DEBUG
+
+
+
+
+
 
 struct PhysicsImpl::impl {
 	~impl() = default;
 
 	PxFoundation* foundation;
+
 	PxPvd* pvd;
+
 	PxPhysics* physics;
 	PxCooking* cooking;
 
@@ -35,6 +40,9 @@ PhysicsImpl::~PhysicsImpl() {
 }
 
 void PhysicsImpl::init() {
+
+
+
 	static PxDefaultErrorCallback gDefaultErrorCallback;
 	static PxDefaultAllocator gDefaultAllocatorCallback;
 
@@ -54,7 +62,8 @@ void PhysicsImpl::init() {
 	scale.length = 1;
 	scale.speed = 981;
 
-	pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, pImpl->pvd);
+	//pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, pImpl->pvd);
+	pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, nullptr);
 
 	if (!pImpl->physics) 
 		throw std::runtime_error("Physics create failed!");
@@ -68,6 +77,7 @@ void PhysicsImpl::init() {
 		throw std::runtime_error("Init extensions failed!");
 	}
 
+
 	pImpl->setCurrentScene();
 
 }
@@ -78,10 +88,13 @@ void PhysicsImpl::startScene() {
 
 
 void PhysicsImpl::release() {
+
 	PxCloseExtensions();
+	pImpl->pvd->release();
+
 	pImpl->currentScene->release();
 	pImpl->cooking->release();
-	pImpl->pvd->release();
+	
 	pImpl->physics->release();
 	pImpl->foundation->release();
 	//pImpl->physics->release();

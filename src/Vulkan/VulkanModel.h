@@ -25,6 +25,7 @@ public:
 	glm::quat getRotation();
 
 	void setPosition(glm::vec3 pos);
+	void setRotation(glm::quat qRot);
 	void setTransform(glm::mat4 transform);
 
 	void update();
@@ -49,6 +50,9 @@ public:
 	void moveDown();
 
 	void loadModel();
+
+	glm::vec3 getPhysXAABB();
+	std::vector<Vertex>& getVertices();
 
 	VulkanModel(const std::string modelLocation, const std::string tex, VkDevice& dev, VkQueue& graphics, VkCommandPool& comPool, VkPhysicalDevice& physicalDev) : 
 	modelLoc(modelLocation), texturePath(tex), device(&dev), graphicsQueue(&graphics), commandPool(&comPool), physicalDevice(&physicalDev){
@@ -77,6 +81,9 @@ public:
 	void setupPhysicsObject() {
 		physicsMaterial = PxGetPhysics().createMaterial(1.0f, 1.0f, 0.0f);
 		physicsObject = PxGetPhysics().createRigidDynamic(PxTransform(PxVec3(getPosition()[0], getPosition()[1], getPosition()[2]))); //Setting this BEFORE we set position of objects doink!!!
+
+		glm::vec3 hExtents = getPhysXAABB();
+		physicsShape = PxRigidActorExt::createExclusiveShape(*physicsObject, PxBoxGeometry(hExtents.x, hExtents.y, hExtents.z), *physicsMaterial);
 	}
 
 	//~VulkanModel() {}
@@ -135,6 +142,8 @@ private:
 	PxShape* physicsShape;
 	PxMaterial* physicsMaterial;
 
+	std::vector<Vertex> vertices;
+
 	void setupBuffers(std::vector<Vertex>& verts, std::vector<uint32_t>& indices) {
 		modelIndicesSize = static_cast<uint32_t>(indices.size());
 		modelVerticesSize = static_cast<uint32_t>(verts.size());
@@ -143,6 +152,8 @@ private:
 		createIndexBuffer(indices);
 
 		setupTextures();
+
+		vertices = verts;
 	}
 
 	
@@ -235,4 +246,6 @@ private:
 		vulkanDestroyBuffer(*device, stagingBuffer);
 		vulkanFreeMemory(*device, stagingBufferMemory);
 	}
+
+	
 };
