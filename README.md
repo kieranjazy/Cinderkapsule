@@ -6,3 +6,6 @@ Short example GIF from around a month and a half ago in engine showing drawing m
 
 
 ![](cinderprogress.gif)
+
+
+Next TODO is to make a very early release zip which can be ran portably.
