@@ -62,8 +62,8 @@ void PhysicsImpl::init() {
 	scale.length = 1;
 	scale.speed = 981;
 
-	//pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, pImpl->pvd);
-	pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, nullptr);
+	pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, pImpl->pvd);
+	//pImpl->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *pImpl->foundation, scale, recordMemoryAllocations, nullptr);
 
 	if (!pImpl->physics) 
 		throw std::runtime_error("Physics create failed!");
