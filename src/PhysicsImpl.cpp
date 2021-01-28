@@ -93,9 +93,9 @@ void PhysicsImpl::release() {
 	pImpl->pvd->release();
 
 	pImpl->currentScene->release();
-	pImpl->cooking->release();
+	//pImpl->cooking->release();
 	
-	pImpl->physics->release();
+	//pImpl->physics->release();
 	pImpl->foundation->release();
 	//pImpl->physics->release();
 }
