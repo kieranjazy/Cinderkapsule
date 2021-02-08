@@ -44,7 +44,7 @@ void Camera::updateTick() {
 }
 
 glm::mat4 Camera::getViewMatrix() {
-	return glm::toMat4(glm::toQuat(pImpl->worldTransform) * glm::toQuat(pImpl->localTransform)) * glm::lookAt(glm::vec3(pImpl->worldTransform[3]), getCameraFacing(), glm::vec3(0.0f, 0.0f, 1.0f));
+	return glm::toMat4(glm::toQuat(pImpl->worldTransform) * glm::toQuat(pImpl->localTransform)) * glm::lookAt(glm::vec3(pImpl->worldTransform[3]), getCameraFacing(), glm::vec3(0.0f, 0.0f, 1.0f)); //couldn't tell ya
 }
 
 glm::vec3 Camera::getCameraFacing() {
@@ -52,12 +52,16 @@ glm::vec3 Camera::getCameraFacing() {
 	return temp;
 }
 
+glm::vec3& Camera::getCameraPositionRef() {
+	return pImpl->position;
+}
+
 void Camera::translate(glm::vec3 transVec) {
 	pImpl->worldTransform = glm::translate(pImpl->worldTransform, transVec);
 }
 
 void Camera::rotate(glm::vec3 axis, float angle, bool local) { //Remember to stop pitch from being equal to 90.0f
-	if (local) {
+	if (local) { //Local stuff is because rotation drifts if only rotated on a single transform
 		pImpl->localTransform = glm::rotate(pImpl->localTransform, angle, axis);
 	}
 	else {
@@ -68,9 +72,17 @@ void Camera::rotate(glm::vec3 axis, float angle, bool local) { //Remember to sto
 	}
 }
 
-void Camera::moveInCameraDir(glm::vec3 dir, float dt) {
+void Camera::moveInCameraDir(glm::vec3 dir, float dt) { //try to make more responsive
 	glm::mat4 tempView = glm::inverse(getViewMatrix());
-	glm::vec3 forward(-tempView[2][0], -tempView[2][1], -tempView[2][2]);
+	glm::vec3 forward(-tempView[2][0], -tempView[2][1], -tempView[2][2]); //We can get the directions for A, S, and D from this vector
+	//This vector represents forwards relative to the transform and rotation of the camera
+	//With different parameters for the dir vec, we should be able to move in the 5 other axes besides forward using only the numbers in forward
+
+	if (dir.x < 0.0f) {
+		forward *= -1;
+	}//Maybe glm::decompose to find the tempView
+
+
 	forward *= dt;
 	pImpl->worldTransform = glm::translate(pImpl->worldTransform, forward);
 }

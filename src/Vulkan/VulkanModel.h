@@ -8,6 +8,7 @@
 #include "VulkanBuffer.h"
 #include "VulkanTexture.h"
 #include "PxPhysicsAPI.h"
+#include "Material.hpp"
 
 #include <tiny_obj_loader.h>
 
@@ -18,9 +19,23 @@
 
 using namespace physx;
 
+class Camera;
+
+struct TextureStruct {
+	VkDeviceMemory textureImageMemory;
+	VkImage texture;
+	VkImageView textureImageView;
+	VkSampler textureSampler;
+};
+
 
 class VulkanModel { //could I have just used inheritance from VulkanImpl...
 public:
+	
+
+	std::vector<tinyobj::material_t> materialLayers; //can hold a bunch of materials for multiple layers
+	std::vector<TextureStruct> textureStructs;
+
 	glm::vec3 getPosition();
 	glm::quat getRotation();
 
@@ -33,29 +48,30 @@ public:
 	void translate(glm::vec3 translateVec);
 
 	std::string getModelLocation();
-	std::string getTextureLocation();
 
 	glm::mat4 getTransform();
 	int getModelIndicesSize();
 	int getModelVerticesSize();
-	VkImageView getImageView(); //Change to return reference
-	VkSampler getTextureSampler();
+	VkImageView getImageView(size_t idx); //Change to return reference
+	VkSampler getTextureSampler(size_t idx);
 
 	VkBuffer& getVertexBuffer();
 	VkBuffer& getIndexBuffer();
 
 	PxRigidDynamic& getRigidDynamicActor();
 
+	tinyobj::material_t& getFirstMaterial();
+
 	void moveUp();
 	void moveDown();
 
-	void loadModel();
+	void loadModel(glm::vec3& cameraPos);
 
 	glm::vec3 getPhysXAABB();
 	std::vector<Vertex>& getVertices();
 
-	VulkanModel(const std::string modelLocation, const std::string tex, VkDevice& dev, VkQueue& graphics, VkCommandPool& comPool, VkPhysicalDevice& physicalDev) : 
-	modelLoc(modelLocation), texturePath(tex), device(&dev), graphicsQueue(&graphics), commandPool(&comPool), physicalDevice(&physicalDev){
+	VulkanModel(const std::string modelLocation, VkDevice& dev, VkQueue& graphics, VkCommandPool& comPool, VkPhysicalDevice& physicalDev) : 
+	modelLoc(modelLocation), device(&dev), graphicsQueue(&graphics), commandPool(&comPool), physicalDevice(&physicalDev){
 		worldTransform = glm::mat4(1.0f);
 		localTransform = glm::mat4(0.0f);
 
@@ -95,13 +111,19 @@ public:
 		vkDestroyBuffer(*device, indexBuffer, nullptr);
 		vkFreeMemory(*device, indexBufferMemory, nullptr);
 
+		for (size_t i = 0; i != 5; i++) {
+			vkDestroySampler(*device, textureStructs[i].textureSampler, nullptr);
+			vkDestroyImage(*device, textureStructs[i].texture, nullptr);
+			vkDestroyImageView(*device, textureStructs[i].textureImageView, nullptr);
+			vkFreeMemory(*device, textureStructs[i].textureImageMemory, nullptr);
+		}
+
+		/*
 		vkDestroySampler(*device, textureSampler, nullptr);
-
 		vkDestroyImage(*device, texture, nullptr);
-
 		vkDestroyImageView(*device, textureImageView, nullptr);
-
 		vkFreeMemory(*device, textureImageMemory, nullptr);
+		*/
 		
 		//Destroy the buffers created MAKE SURE WE DESTROY EVERYTHING RELATED TO THIS MODEL
 	}
@@ -110,7 +132,6 @@ public:
 private:
 	bool isLoaded; //setup
 	std::string modelLoc;
-	std::string texturePath;
 
 	VkDevice* device;
 	VkQueue* graphicsQueue;
@@ -123,14 +144,7 @@ private:
 
 	VkDeviceMemory vertexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
-
-
-	VkDeviceMemory textureImageMemory;
-
-	VkImage texture;
-	VkImageView textureImageView;
-
-	VkSampler textureSampler;
+	
 	//Add vulkan texture sampler per model
 
 	glm::mat4 localTransform;
@@ -157,10 +171,33 @@ private:
 	}
 
 	
-	void setupTextures() {
+	void setupTextures() {//call after load model
+		//Setup 5 texture maps for PBR material
+		TextureStruct text;
+		std::vector<std::string> maps;
+		
+		maps = {
+			materialLayers[0].diffuse_texname,
+			materialLayers[0].normal_texname,
+			materialLayers[0].metallic_texname,
+			materialLayers[0].roughness_texname,
+			materialLayers[0].ambient_texname
+		};
+		
+
+		for (size_t i = 0; i != 5; i++) {
+			text.texture = createTextureImage(maps[i], *device, *physicalDevice, text.textureImageMemory, *commandPool, *graphicsQueue);
+			text.textureImageView = createTextureImageView(text.texture, *device);
+			text.textureSampler = createTextureSampler(*device);
+
+			textureStructs.push_back(text);
+		}
+
+		/*
 		texture = createTextureImage(texturePath, *device, *physicalDevice, textureImageMemory, *commandPool, *graphicsQueue);
 		textureImageView = createTextureImageView(texture, *device);
 		textureSampler = createTextureSampler(*device);
+		*/
 	}
 	
 

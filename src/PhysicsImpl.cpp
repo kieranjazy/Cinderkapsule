@@ -95,8 +95,11 @@ void PhysicsImpl::release() {
 	pImpl->currentScene->release();
 	//pImpl->cooking->release();
 	
+
 	//pImpl->physics->release();
 	pImpl->foundation->release();
+	
+	
 	//pImpl->physics->release();
 }
 

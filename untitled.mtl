@@ -1,12 +1,11 @@
-# Blender MTL File: 'None'
-# Material Count: 1
+# File produced by Open Asset Import Library (http://www.assimp.sf.net)
+# (assimp v3.1.193236683)
 
 newmtl Material
-Ns 323.999994
-Ka 1.000000 1.000000 1.000000
-Kd 0.800000 0.017673 0.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.450000
-d 1.000000
-illum 2
+norm pier_Material_Normal.jpg
+map_Kd pier_Material_BaseColor.jpg
+map_Ka pier_Material_AO.jpg
+map_Pm pier_Material_Metallic.jpg
+map_Pr pier_Material_Roughness.jpg
+illum 1
+

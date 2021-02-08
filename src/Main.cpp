@@ -17,10 +17,11 @@ int main(int argc, char* argv[])
 	try {
 		//std::thread soundThr(&SoundManager::start, &soundManager);
 		//std::thread vulkanThr(&VulkanImpl::run, &vulkan);
-		physics.init();
-		vulkan.run();
-		soundManager.start();
 		camera.setup();
+		physics.init();
+		vulkan.run(camera.getCameraPositionRef());
+		soundManager.start();
+		
 		
 
 		for (VulkanModel model : vulkan.models) {

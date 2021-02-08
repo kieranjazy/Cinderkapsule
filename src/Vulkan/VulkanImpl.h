@@ -115,14 +115,14 @@ struct UniformBufferObject {
 	glm::mat4 proj;
 };
 
-class VulkanImpl { //A bulk of the work
+class VulkanImpl {
 public:
 	std::vector<VulkanModel> models;
 
 
-	void run() {
+	void run(glm::vec3& cameraPos) {
 		initWindow();
-		initVulkan();
+		initVulkan(cameraPos);
 	}
 
 	void drawFramePublic(glm::mat4 cameraFacing) {
@@ -201,7 +201,7 @@ private:
 		window = SDL_CreateWindow("Main Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 2560, 1440, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 	}
 
-	void initVulkan() {
+	void initVulkan(glm::vec3& cameraPos) {
 		
 
 
@@ -222,7 +222,7 @@ private:
 		createCommandPool();
 		createTextureSampler();
 
-		loadModels();
+		loadModels(cameraPos);
 
 		createUniformBuffers();
 		createDescriptorPool();
@@ -590,6 +590,8 @@ private:
 	}
 
 	void createDescriptorSetLayout() {
+		std::vector<VkDescriptorSetLayoutBinding> bindings;
+
 		VkDescriptorSetLayoutBinding uboLayoutBinding{};
 		uboLayoutBinding.binding = 0;
 		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -598,14 +600,33 @@ private:
 		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 		uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
+		bindings.push_back(uboLayoutBinding);
+
+		/*
 		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
 		samplerLayoutBinding.binding = 1;
-		samplerLayoutBinding.descriptorCount = 1;
+		samplerLayoutBinding.descriptorCount = 1; //one for each pbr map? TODO
 		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		samplerLayoutBinding.pImmutableSamplers = nullptr;
 		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		*/
 
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+		for (size_t i = 0; i != 5; i++) {
+			VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+			samplerLayoutBinding.binding = i + 1;
+			samplerLayoutBinding.descriptorCount = 1; //one for each pbr map? TODO
+			samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			samplerLayoutBinding.pImmutableSamplers = nullptr;
+			samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+			bindings.push_back(samplerLayoutBinding);
+		}
+
+
+
+		
+		
+		
+		//= { uboLayoutBinding, samplerLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -648,6 +669,15 @@ private:
 		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
 		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+
+
+
+
+
+
+
+
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -870,12 +900,6 @@ private:
 				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[offset], 0, nullptr); //COME BACK TO TODO
 				vkCmdDrawIndexed(commandBuffers[i], models[k].getModelIndicesSize(), 1, 0, 0, 0);
 			}
-			
-
-
-
-
-
 
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -945,11 +969,19 @@ private:
 	}
 
 	void createDescriptorPool() {
-		std::array<VkDescriptorPoolSize, 2> poolSizes{};
+		std::array<VkDescriptorPoolSize, 6> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size());
+
+		/*
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size());
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size()); //Multiply for each PBR map
+		*/
+
+		for (size_t i = 0; i != 5; i++) {
+			poolSizes[i + 1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			poolSizes[i + 1].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size());
+		}
 
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -978,17 +1010,12 @@ private:
 		for (int i = 0; i < swapChainImages.size(); i++) {
 			for (int j = 0; j < models.size(); j++) {
 				std::vector<VkWriteDescriptorSet> descWrites;
-				descWrites.resize(2);
+				descWrites.resize(6);
 
 				VkDescriptorBufferInfo bufferInfo{};
 				bufferInfo.offset = 0;
 				bufferInfo.range = sizeof(UniformBufferObject);
 				bufferInfo.buffer = uniformBuffers[j + (i * models.size())];
-
-				VkDescriptorImageInfo imageInfo{};
-				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = models[j].getImageView();
-				imageInfo.sampler = models[j].getTextureSampler(); //set these up :: FOUND THE PROBLEM
 
 				descWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descWrites[0].dstSet = descriptorSets[j + (i * models.size())];
@@ -997,14 +1024,37 @@ private:
 				descWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 				descWrites[0].descriptorCount = 1;
 				descWrites[0].pBufferInfo = &bufferInfo;
+				
+				std::vector<VkDescriptorImageInfo> imageInf;
+				imageInf.resize(5);
 
+				for (size_t k = 0; k != 5; k++) {
+					imageInf[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+					imageInf[k].imageView = models[j].getImageView(k); 
+					imageInf[k].sampler = models[j].getTextureSampler(k);
+
+					descWrites[k + 1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+					descWrites[k + 1].dstSet = descriptorSets[j + (i * models.size())];
+					descWrites[k + 1].dstBinding = k + 1;
+					descWrites[k + 1].dstArrayElement = 0;
+					descWrites[k + 1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+					descWrites[k + 1].descriptorCount = 1;
+					descWrites[k + 1].pImageInfo = &imageInf[k];
+				}
+				 //set these up :: FOUND THE PROBLEM
+				//do this on a piece by piece basis for each map stored in a model ..i.e. a for loop adding more samplers
+
+				
+
+				/*
 				descWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descWrites[1].dstSet = descriptorSets[j + (i * models.size())];
 				descWrites[1].dstBinding = 1;
 				descWrites[1].dstArrayElement = 0;
 				descWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-				descWrites[1].descriptorCount = 1;
-				descWrites[1].pImageInfo = &imageInfo;
+				descWrites[1].descriptorCount = 5; //TODO
+				descWrites[1].pImageInfo = imageInf.data();
+				*/
 
 				vkUpdateDescriptorSets(device, static_cast<uint32_t>(descWrites.size()), descWrites.data(), 0, nullptr);
 			}
@@ -1343,33 +1393,40 @@ private:
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 
-	void loadModels() {
-		VulkanModel questionModel(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
-		VulkanModel model2(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
-		VulkanModel model3(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
+	void loadModels(glm::vec3& cameraPos) {
+		//VulkanModel questionModel(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		//VulkanModel model2(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		//VulkanModel model3(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 
-		VulkanModel plank("PLANK.obj", "Material Base Color.png", device, graphicsQueue, commandPool, physicalDevice);
+		//VulkanModel plank("PLANK.obj", "Material Base Color.png", device, graphicsQueue, commandPool, physicalDevice);
 
 
 
-		questionModel.loadModel();
-		model2.loadModel();
-		model3.loadModel();
-		plank.loadModel();
+		//questionModel.loadModel(cameraPos);
+		//model2.loadModel(cameraPos);
+		//model3.loadModel(cameraPos);
+		//plank.loadModel(cameraPos);
 		
-		models.push_back(questionModel);
-		models.push_back(model2);
-		models.push_back(model3);
-	    models.push_back(plank);
+		//models.push_back(questionModel);
+		//models.push_back(model2);
+		//models.push_back(model3);
+	   // models.push_back(plank);
 
-		for (int i = 0; i != models.size() - 1; i++) {
-			models[i].translate(glm::vec3(0, 0, i * 4));
-			models[i].setupPhysicsObject();
-		}
+		//for (int i = 0; i != models.size() - 1; i++) {
+		//	models[i].translate(glm::vec3(0, 0, i * 4));
+		//	models[i].setupPhysicsObject();
+		//}
 
-		models[3].translate(glm::vec3(0, 0, -10));
-		models[3].setupPhysicsObject();
-		models[3].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
-		models[3].getRigidDynamicActor().setMaxAngularVelocity(0.0f);
+		//models[3].translate(glm::vec3(0, 0, -10));
+		//models[3].setupPhysicsObject();
+		//models[3].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
+		//models[3].getRigidDynamicActor().setMaxAngularVelocity(0.0f);
+
+		VulkanModel pierModel(MODEL_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		pierModel.loadModel(cameraPos);
+		models.push_back(pierModel);
+		models[0].setupPhysicsObject();
+		models[0].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
+		models[0].getRigidDynamicActor().setMaxAngularVelocity(0.0f);
 	}
 };

@@ -15,7 +15,7 @@
 class InputManager { //gonna keep inputs low level to minimise delay
 public:
 	float speed = 20.0f;
-	float mouseSensitivity = 30.0f;
+	float mouseSensitivity = 35.0f;
 
 	std::unique_ptr<VulkanImpl> vulkan;
 	std::unique_ptr<PhysicsImpl> physics;
@@ -33,9 +33,21 @@ public:
 	void update(SDL_Event &e, float deltaTime) {
 		 SDL_PumpEvents();
 		 const Uint8* state = SDL_GetKeyboardState(NULL);
-
+		 
 		 if (state[SDL_SCANCODE_W]) {
+			 camera->moveInCameraDir(glm::vec3(1.0f, 0.0f, 0.0f), deltaTime * 30.0f);
+		 }
+
+		 if (state[SDL_SCANCODE_A]) {
+			 camera->moveInCameraDir(glm::vec3(0.0f, -1.0f, 0.0f), deltaTime * 25.0f);
+		 }
+
+		 if (state[SDL_SCANCODE_S]) {
 			 camera->moveInCameraDir(glm::vec3(-1.0f, 0.0f, 0.0f), deltaTime * 30.0f);
+		 }
+
+		 if (state[SDL_SCANCODE_D]) {
+			 camera->moveInCameraDir(glm::vec3(0.0f, 1.0f, 0.0f), deltaTime * 25.0f);
 		 }
 
 		 if (state[SDL_SCANCODE_ESCAPE]) {
@@ -45,6 +57,8 @@ public:
 		 if (state[SDL_SCANCODE_T]) {
 			 vulkan->models[0].getRigidDynamicActor().setLinearVelocity(PxVec3(-5.0f, 0.0f, 0.0f));
 		 }
+
+		 //SDL_GetMouseState
 
 
 		while (SDL_PollEvent(&e)) {

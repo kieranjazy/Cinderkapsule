@@ -12,6 +12,7 @@ public:
 
 	glm::mat4 getViewMatrix();
 	glm::vec3 getCameraFacing();
+	glm::vec3& getCameraPositionRef();
 
 	void translate(glm::vec3 transVec);
 	void rotate(glm::vec3 axis, float angle, bool local);

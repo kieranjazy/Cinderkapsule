@@ -3,7 +3,19 @@
 #include <iostream>
 #include "glmWithPhysX.h"
 
+std::vector<glm::vec3> lPositions = {
+	glm::vec3(-4.0f,  4.0f, 4.0f),
+	glm::vec3(4.0f,  4.0f, 4.0f),
+	glm::vec3(-4.0f, -4.0f, 4.0f),
+	glm::vec3(4.0f, -4.0f, 4.0f),
+};
 
+std::vector<glm::vec3> lColours = {
+	glm::vec3(300.0f, 300.0f, 300.0f),
+	glm::vec3(300.0f, 300.0f, 300.0f),
+	glm::vec3(300.0f, 300.0f, 300.0f),
+	glm::vec3(300.0f, 300.0f, 300.0f)
+};
 
 //CLEAN UP WHEN FUNCTIONAL
 void VulkanModel::update() {
@@ -64,10 +76,6 @@ std::string VulkanModel::getModelLocation() {
 	return modelLoc;
 }
 
-std::string VulkanModel::getTextureLocation() {
-	return texturePath;
-}
-
 VkBuffer& VulkanModel::getVertexBuffer() {
 	return vertexBuffer;
 }
@@ -97,15 +105,18 @@ void VulkanModel::moveDown() {
 }
 
 
-void VulkanModel::loadModel() {
+void VulkanModel::loadModel(glm::vec3& cameraPos) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, err;
 
+
 	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelLoc.c_str())) {
 		throw std::runtime_error(warn + err);
 	}
+
+	materialLayers = materials;
 
 	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 	std::vector<Vertex> vertices;
@@ -128,6 +139,23 @@ void VulkanModel::loadModel() {
 
 			vertex.color = { 1.0f, 1.0f, 1.0f };
 
+			/* Lighting vertex buffer init stuff*/
+			vertex.normal = {
+				attrib.normals[3 * index.normal_index + 0],
+				attrib.normals[3 * index.normal_index + 1],
+				attrib.normals[3 * index.normal_index + 2]
+			};
+
+			vertex.cameraPos = cameraPos; //How are we gonna inform this position of the camera's position?
+
+			vertex.lightPos1 = lPositions[0];
+			vertex.lightPos2 = lPositions[1];
+
+			vertex.lightColour1 = lColours[0];
+			vertex.lightColour2 = lColours[1];
+
+			/*                                  */
+
 			if (uniqueVertices.count(vertex) == 0) {
 				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
 				vertices.push_back(vertex);
@@ -143,12 +171,12 @@ void VulkanModel::loadModel() {
 	setupBuffers(vertices, indices);
 }
 
-VkImageView VulkanModel::getImageView() { //focus
-	return textureImageView;
+VkImageView VulkanModel::getImageView(size_t idx) { //focus
+	return textureStructs[idx].textureImageView;
 }
 
-VkSampler VulkanModel::getTextureSampler() {
-	return textureSampler;
+VkSampler VulkanModel::getTextureSampler(size_t idx) {
+	return textureStructs[idx].textureSampler;
 }
 
 glm::vec3 VulkanModel::getPhysXAABB() {
@@ -193,4 +221,8 @@ glm::vec3 VulkanModel::getPhysXAABB() {
 
 std::vector<Vertex>& VulkanModel::getVertices() {
 	return vertices;
+}
+
+tinyobj::material_t& VulkanModel::getFirstMaterial() {
+	return materialLayers[0];
 }
