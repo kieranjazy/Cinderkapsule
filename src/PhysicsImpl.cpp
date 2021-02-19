@@ -90,14 +90,13 @@ void PhysicsImpl::startScene() {
 void PhysicsImpl::release() {
 
 	PxCloseExtensions();
-	pImpl->pvd->release();
+	//pImpl->pvd->release();
 
 	pImpl->currentScene->release();
-	//pImpl->cooking->release();
-	
-
-	//pImpl->physics->release();
+	pImpl->cooking->release();
+	pImpl->physics->release();
 	pImpl->foundation->release();
+	
 	
 	
 	//pImpl->physics->release();

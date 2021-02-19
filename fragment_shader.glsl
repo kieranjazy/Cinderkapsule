@@ -1,5 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 
 layout(location = 0) out vec4 FragColour;
 
@@ -7,10 +8,6 @@ layout(location = 0) in vec2 TexCoords;
 layout(location = 1) in vec3 WorldPos;
 layout(location = 2) in vec3 Normal;
 layout(location = 3) in vec3 camPos;
-layout(location = 4) in vec3 inLightPos1;
-layout(location = 5) in vec3 inLightPos2;
-layout(location = 6) in vec3 inLightColour1;
-layout(location = 7) in vec3 inLightColour2;
 
 
 layout(binding = 1) uniform sampler2D albedoMap;
@@ -18,6 +15,25 @@ layout(binding = 2) uniform sampler2D normalMap;
 layout(binding = 3) uniform sampler2D metallicMap;
 layout(binding = 4) uniform sampler2D roughnessMap;
 layout(binding = 5) uniform sampler2D aoMap;
+
+/*
+layout(std140, binding = 6) uniform PointLight {
+	vec3 lightPosition;
+	vec3 lightColour;
+} pointLights[];
+*/
+
+struct PointLight {
+	vec3 position;
+	vec3 colour;
+};
+
+layout(std140, set = 0, binding = 6) buffer PointLightBlock {
+	PointLight pLights[]; //use specialization constant to init this array size;
+} pointLights;
+
+
+
 
 
 const float PI = 3.14159265359;
@@ -73,9 +89,6 @@ void main() {
 	float roughness = texture(roughnessMap, TexCoords).r;
 	float ao = texture(aoMap, TexCoords).r;
 
-	vec3 lightPositions[] = {inLightPos1, inLightPos2};
-	vec3 lightColours[] = {inLightColour1, inLightColour2};
-
 	vec3 N = normalize(Normal);
 	vec3 V = normalize(camPos - WorldPos);
 
@@ -84,12 +97,12 @@ void main() {
 
 	vec3 Lo = vec3(0.0);
 
-	for(int i = 0; i != 2; ++i) {
-		vec3 L = normalize(lightPositions[i] - WorldPos);
+	for(int i = 0; i != 2; i++) {
+		vec3 L = normalize(pointLights.pLights[i].position - WorldPos);
 		vec3 H = normalize(V + L);
-		float distance = length(lightPositions[i] - WorldPos);
+		float distance = length(pointLights.pLights[i].position - WorldPos);
 		float attenuation = 1.0 / (distance * distance);
-		vec3 radiance = lightColours[i] * attenuation;
+		vec3 radiance = pointLights.pLights[i].colour * attenuation;
 
 		float NDF = DistributionGGX(N, H, roughness);
 		float G = GeometrySmith(N, V, L, roughness);

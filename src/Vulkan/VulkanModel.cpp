@@ -3,32 +3,10 @@
 #include <iostream>
 #include "glmWithPhysX.h"
 
-std::vector<glm::vec3> lPositions = {
-	glm::vec3(-4.0f,  4.0f, 4.0f),
-	glm::vec3(4.0f,  4.0f, 4.0f),
-	glm::vec3(-4.0f, -4.0f, 4.0f),
-	glm::vec3(4.0f, -4.0f, 4.0f),
-};
-
-std::vector<glm::vec3> lColours = {
-	glm::vec3(300.0f, 300.0f, 300.0f),
-	glm::vec3(300.0f, 300.0f, 300.0f),
-	glm::vec3(300.0f, 300.0f, 300.0f),
-	glm::vec3(300.0f, 300.0f, 300.0f)
-};
-
 //CLEAN UP WHEN FUNCTIONAL
 void VulkanModel::update() {
-	if (physicsObject) {
-		//setPosition(glm::vec3(physicsObject->getGlobalPose().p.x, physicsObject->getGlobalPose().p.y, physicsObject->getGlobalPose().p.z)); //Try to pass PxReal everywhere to avoid weird floating point errors TODO
-		//setRotation(glm::quat(physicsObject->getGlobalPose().q.w, physicsObject->getGlobalPose().q.x, physicsObject->getGlobalPose().q.y, physicsObject->getGlobalPose().q.z));
+	if (physicsObject != nullptr) {
 		worldTransform = pMat4ToGMat4(physx::PxMat44(physicsObject->getGlobalPose()));
-		//float angle;
-		//physx::PxVec3 axis;
-
-		//physicsObject->getGlobalPose().q.toRadiansAndUnitAxis(angle, axis);
-		//setRotation(angle, glm::vec3(axis.x, axis.y, axis.z)); //Bottom object is getting hit slightly, slightly changes rotation, this gets interpreted as angular velocity and keeps rotating, fix
-		//If current object rotation != physX object rotation, rotate until they are equal then stop
 	}
 }
 
@@ -70,6 +48,13 @@ void VulkanModel::rotate(glm::vec3 rotateVec, float angle) { //break the vector 
 
 void VulkanModel::translate(glm::vec3 translateVec) {
 	worldTransform = glm::translate(worldTransform, translateVec);
+
+	physx::PxTransform temp = physicsObject->getGlobalPose();
+	temp.p[0] += translateVec[0];
+	temp.p[1] += translateVec[1];
+	temp.p[2] += translateVec[2];
+
+	physicsObject->setGlobalPose(temp);
 }
 
 std::string VulkanModel::getModelLocation() {
@@ -85,7 +70,8 @@ VkBuffer& VulkanModel::getIndexBuffer() {
 }
 
 PxRigidDynamic& VulkanModel::getRigidDynamicActor() {
-	return *physicsObject;
+	if (physicsObject != nullptr)
+		return *physicsObject;
 }
 
 int VulkanModel::getModelIndicesSize() {
@@ -105,7 +91,7 @@ void VulkanModel::moveDown() {
 }
 
 
-void VulkanModel::loadModel(glm::vec3& cameraPos) {
+void VulkanModel::loadModel() {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -139,22 +125,11 @@ void VulkanModel::loadModel(glm::vec3& cameraPos) {
 
 			vertex.color = { 1.0f, 1.0f, 1.0f };
 
-			/* Lighting vertex buffer init stuff*/
 			vertex.normal = {
 				attrib.normals[3 * index.normal_index + 0],
 				attrib.normals[3 * index.normal_index + 1],
 				attrib.normals[3 * index.normal_index + 2]
 			};
-
-			vertex.cameraPos = cameraPos; //How are we gonna inform this position of the camera's position?
-
-			vertex.lightPos1 = lPositions[0];
-			vertex.lightPos2 = lPositions[1];
-
-			vertex.lightColour1 = lColours[0];
-			vertex.lightColour2 = lColours[1];
-
-			/*                                  */
 
 			if (uniqueVertices.count(vertex) == 0) {
 				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
@@ -162,13 +137,14 @@ void VulkanModel::loadModel(glm::vec3& cameraPos) {
 			}
 
 			indices.push_back(uniqueVertices[vertex]);
-
-			//vertices.push_back(vertex);
-			//indices.push_back(model.getModelIndicesSize());
 		}
 	}
 
 	setupBuffers(vertices, indices);
+
+	setupPhysicsObject();
+	getRigidDynamicActor().setMaxLinearVelocity(0.0f);
+	getRigidDynamicActor().setMaxAngularVelocity(0.0f);
 }
 
 VkImageView VulkanModel::getImageView(size_t idx) { //focus

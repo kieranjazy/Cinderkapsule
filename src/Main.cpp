@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
 		//std::thread vulkanThr(&VulkanImpl::run, &vulkan);
 		camera.setup();
 		physics.init();
-		vulkan.run(camera.getCameraPositionRef());
+		vulkan.run();
 		soundManager.start();
 		
 		

@@ -1,6 +1,7 @@
 #pragma once
 #include "VulkanModel.h"
 #include "Vertex.h"
+#include "Light.h"
 
 #include "SDL.h"
 #include "SDL_vulkan.h"
@@ -31,7 +32,6 @@
 #include <iterator>
 
 
-
 //#define VMA_IMPLEMENTATION
 //#include "vk_mem_alloc.h"
 
@@ -47,7 +47,8 @@ const std::vector<const char*> validationLayers = {
 };
 
 const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
 };
 
 #ifdef NDEBUG
@@ -57,9 +58,9 @@ const bool enableValidationLayers = true;
 #endif
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
-	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-	const VkAllocationCallbacks* pAllocator,
-	VkDebugUtilsMessengerEXT* pDebugMessenger) {
+	const VkDebugUtilsMessengerCreateInfoEXT * pCreateInfo,
+	const VkAllocationCallbacks * pAllocator,
+	VkDebugUtilsMessengerEXT * pDebugMessenger) {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
@@ -69,14 +70,14 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
 	}
 }
 
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks * pAllocator) {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		func(instance, debugMessenger, pAllocator);
 	}
 }
 
-static std::vector<char> readFile(const std::string& filename) {
+static std::vector<char> readFile(const std::string & filename) {
 	std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
 	if (!file.is_open()) {
@@ -118,11 +119,11 @@ struct UniformBufferObject {
 class VulkanImpl {
 public:
 	std::vector<VulkanModel> models;
+	std::vector<PointLight> pointLights;
 
-
-	void run(glm::vec3& cameraPos) {
+	void run() {
 		initWindow();
-		initVulkan(cameraPos);
+		initVulkan();
 	}
 
 	void drawFramePublic(glm::mat4 cameraFacing) {
@@ -180,16 +181,19 @@ private:
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> imagesInFlight;
 
-	
+
 
 
 	std::vector<VkBuffer> uniformBuffers;
 	std::vector<VkDeviceMemory> uniformBuffersMemory;
 
+	std::vector<VkBuffer> lightingBuffers;
+	std::vector<VkDeviceMemory> lightingBuffersMemory;
+
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
 
-	VkSampler textureSampler; // ?? ?? ? ? ? ?? ? ????? 
+	VkSampler textureSampler;
 
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
@@ -201,8 +205,8 @@ private:
 		window = SDL_CreateWindow("Main Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 2560, 1440, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 	}
 
-	void initVulkan(glm::vec3& cameraPos) {
-		
+	void initVulkan() {
+
 
 
 		createInstance();
@@ -222,9 +226,10 @@ private:
 		createCommandPool();
 		createTextureSampler();
 
-		loadModels(cameraPos);
+		loadModels();
 
 		createUniformBuffers();
+		createLightingBuffer();
 		createDescriptorPool();
 		createDescriptorSets();
 		createCommandBuffers();
@@ -256,13 +261,15 @@ private:
 
 		imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
-		
+
 		for (int i = 0; i < swapChainImages.size(); i++) {
+			updateLightingBuffer(i);
+
 			for (int j = 0; j < models.size(); j++) {
 				updateUniformBuffer(j + (i * models.size()), models[j].getTransform(), cameraFacing);
 			}
 		}
-		
+
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -326,6 +333,17 @@ private:
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
 	}
+
+	void updateLightingBuffer(uint32_t currentImage) {
+		//pointLights[0].colour[2] -= 1;
+		void* data;
+		//vkMapMemory(device, lightingBuffersMemory[currentImage], 0, sizeof(PointLight) * pointLights.size(), 0, &data);
+		vkMapMemory(device, lightingBuffersMemory[currentImage], 0, sizeof(PointLight) * pointLights.size(), 0, &data);
+		memcpy(data, pointLights.data(), sizeof(PointLight) * pointLights.size());
+		vkUnmapMemory(device, lightingBuffersMemory[currentImage]);
+	}
+
+
 
 	void cleanup() {
 		vkDeviceWaitIdle(device);
@@ -484,6 +502,7 @@ private:
 		createDepthResources();
 		createFramebuffers();
 		createUniformBuffers();
+		createLightingBuffer();
 		createDescriptorPool();
 		createDescriptorSets();
 		createCommandBuffers();
@@ -514,6 +533,12 @@ private:
 			vkDestroyBuffer(device, uniformBuffers[i], nullptr);
 			vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
 		}
+
+		for (size_t i = 0; i < swapChainImages.size(); i++) {
+			vkDestroyBuffer(device, lightingBuffers[i], nullptr);
+			vkFreeMemory(device, lightingBuffersMemory[i], nullptr);
+		}
+
 
 		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	}
@@ -621,16 +646,34 @@ private:
 			bindings.push_back(samplerLayoutBinding);
 		}
 
+		VkDescriptorSetLayoutBinding pointLightLayoutBinding{};
+		pointLightLayoutBinding.binding = 6;
+		pointLightLayoutBinding.descriptorCount = 1;
+		pointLightLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		pointLightLayoutBinding.pImmutableSamplers = nullptr;
+		pointLightLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings.push_back(pointLightLayoutBinding);
 
+		
+		/*
+		//VkDescriptorBindingFlags bindFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+		VkDescriptorBindingFlags bindFlags = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT;
 
+		VkDescriptorSetLayoutBindingFlagsCreateInfo extendedInfo{};
+		extendedInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+		extendedInfo.pNext = nullptr;
+		extendedInfo.bindingCount = bindings.size();
+		extendedInfo.pBindingFlags = &bindFlags;
+		*/
 		
-		
-		
+
 		//= { uboLayoutBinding, samplerLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 		layoutInfo.pBindings = bindings.data();
+		//layoutInfo.pNext = &extendedInfo;
+		layoutInfo.flags = 0;
 
 		if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor set layout!");
@@ -886,9 +929,9 @@ private:
 
 			//std::vector<VkBuffer> vertexBuffers;
 
-			
+
 			VkDeviceSize offsets[] = { 0 };
-			
+
 
 			//Why does this code ignore swapchain offsets?
 			for (size_t k = 0; k < models.size(); k++) {
@@ -945,6 +988,18 @@ private:
 
 	}
 
+	void createLightingBuffer() {
+		VkDeviceSize bufferSize = sizeof(PointLight) * static_cast<uint32_t>(pointLights.size()); //for now fix to number of pointLights at startup
+
+		lightingBuffers.resize(swapChainImages.size());
+		lightingBuffersMemory.resize(swapChainImages.size());
+
+		for (size_t i = 0; i < swapChainImages.size(); i++) {
+			createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, lightingBuffers[i], lightingBuffersMemory[i], device, physicalDevice);
+		}
+
+	}
+
 	void createSyncObjects() {
 		imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 		renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -969,7 +1024,7 @@ private:
 	}
 
 	void createDescriptorPool() {
-		std::array<VkDescriptorPoolSize, 6> poolSizes{};
+		std::array<VkDescriptorPoolSize, 7> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size());
 
@@ -983,11 +1038,15 @@ private:
 			poolSizes[i + 1].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size());
 		}
 
+		poolSizes[6].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		poolSizes[6].descriptorCount = static_cast<uint32_t>(swapChainImages.size() * models.size());
+
+
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(swapChainImages.size() * models.size());
+		poolInfo.maxSets = static_cast<uint32_t>(swapChainImages.size() * models.size()); //maybe remove new last part
 
 		if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool!");
@@ -1010,7 +1069,7 @@ private:
 		for (int i = 0; i < swapChainImages.size(); i++) {
 			for (int j = 0; j < models.size(); j++) {
 				std::vector<VkWriteDescriptorSet> descWrites;
-				descWrites.resize(6);
+				descWrites.resize(7); //hardcode for now testing
 
 				VkDescriptorBufferInfo bufferInfo{};
 				bufferInfo.offset = 0;
@@ -1024,13 +1083,13 @@ private:
 				descWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 				descWrites[0].descriptorCount = 1;
 				descWrites[0].pBufferInfo = &bufferInfo;
-				
+
 				std::vector<VkDescriptorImageInfo> imageInf;
 				imageInf.resize(5);
 
 				for (size_t k = 0; k != 5; k++) {
 					imageInf[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-					imageInf[k].imageView = models[j].getImageView(k); 
+					imageInf[k].imageView = models[j].getImageView(k);
 					imageInf[k].sampler = models[j].getTextureSampler(k);
 
 					descWrites[k + 1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1041,20 +1100,19 @@ private:
 					descWrites[k + 1].descriptorCount = 1;
 					descWrites[k + 1].pImageInfo = &imageInf[k];
 				}
-				 //set these up :: FOUND THE PROBLEM
-				//do this on a piece by piece basis for each map stored in a model ..i.e. a for loop adding more samplers
 
-				
+				VkDescriptorBufferInfo lightBufferInfo{};
+				lightBufferInfo.offset = 0;
+				lightBufferInfo.range = sizeof(PointLight) * pointLights.size();
+				lightBufferInfo.buffer = lightingBuffers[i];
 
-				/*
-				descWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descWrites[1].dstSet = descriptorSets[j + (i * models.size())];
-				descWrites[1].dstBinding = 1;
-				descWrites[1].dstArrayElement = 0;
-				descWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-				descWrites[1].descriptorCount = 5; //TODO
-				descWrites[1].pImageInfo = imageInf.data();
-				*/
+				descWrites[6].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				descWrites[6].dstSet = descriptorSets[j + (i * models.size())]; //maybe not
+				descWrites[6].dstBinding = 6;
+				descWrites[6].dstArrayElement = 0;
+				descWrites[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+				descWrites[6].descriptorCount = 1;
+				descWrites[6].pBufferInfo = &lightBufferInfo;
 
 				vkUpdateDescriptorSets(device, static_cast<uint32_t>(descWrites.size()), descWrites.data(), 0, nullptr);
 			}
@@ -1108,6 +1166,18 @@ private:
 
 		VkPhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
+		deviceFeatures.shaderUniformBufferArrayDynamicIndexing = VK_TRUE;
+
+		VkPhysicalDeviceDescriptorIndexingFeaturesEXT indexingFeatures{};
+		indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+		indexingFeatures.pNext = nullptr;
+		indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+		indexingFeatures.runtimeDescriptorArray = VK_TRUE;
+
+		VkPhysicalDeviceFeatures2 deviceFeatures2{};
+		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+		deviceFeatures2.pNext = &indexingFeatures;
+		vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures2);
 
 		VkDeviceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1118,6 +1188,7 @@ private:
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 		createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
+		createInfo.pNext = &indexingFeatures;
 
 		//LEGACY COMPATIBILITY CODE
 		if (enableValidationLayers) {
@@ -1393,7 +1464,7 @@ private:
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 
-	void loadModels(glm::vec3& cameraPos) {
+	void loadModels() {
 		//VulkanModel questionModel(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		//VulkanModel model2(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		//VulkanModel model3(MODEL_PATH, TEXTURE_PATH, device, graphicsQueue, commandPool, physicalDevice);
@@ -1406,7 +1477,7 @@ private:
 		//model2.loadModel(cameraPos);
 		//model3.loadModel(cameraPos);
 		//plank.loadModel(cameraPos);
-		
+
 		//models.push_back(questionModel);
 		//models.push_back(model2);
 		//models.push_back(model3);
@@ -1422,11 +1493,39 @@ private:
 		//models[3].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
 		//models[3].getRigidDynamicActor().setMaxAngularVelocity(0.0f);
 
+		/*
 		VulkanModel pierModel(MODEL_PATH, device, graphicsQueue, commandPool, physicalDevice);
 		pierModel.loadModel(cameraPos);
 		models.push_back(pierModel);
-		models[0].setupPhysicsObject();
-		models[0].getRigidDynamicActor().setMaxLinearVelocity(0.0f);
-		models[0].getRigidDynamicActor().setMaxAngularVelocity(0.0f);
+
+		VulkanModel pierModel2(MODEL_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		pierModel2.loadModel(cameraPos);
+		pierModel2.translate(glm::vec3(10.0f, 0, 0));
+		models.push_back(pierModel2);
+		 //Error only comes when more than one model is present, fix and should be good for this 
+
+		VulkanModel pierModel3(MODEL_PATH, device, graphicsQueue, commandPool, physicalDevice);
+		pierModel3.loadModel(cameraPos);
+		pierModel3.translate(glm::vec3(0, 5.0f, 0));
+		models.push_back(pierModel3);
+		
+		*/
+
+		for (int i = 0; i != 5; i++) {
+			VulkanModel pModel(MODEL_PATH, device, graphicsQueue, commandPool, physicalDevice);
+			
+			pModel.loadModel();
+			pModel.translate(glm::vec3(i * 5.0f, 0.0f, 0.0f));
+			models.push_back(pModel);
+		}
+
+		PointLight pLight1 = {};
+		PointLight pLight2 = {};
+		pLight1.position = glm::vec3(-3, 0, 0);
+		pLight1.colour = glm::vec3(30, 20, 30);
+		//pLight2.position = glm::vec3(1, 1, 1);
+		//pLight2.colour = glm::vec3(30, 200, 30);
+		pointLights.push_back(pLight1);
+		pointLights.push_back(pLight2);
 	}
 };

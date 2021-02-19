@@ -29,7 +29,7 @@ struct TextureStruct {
 };
 
 
-class VulkanModel { //could I have just used inheritance from VulkanImpl...
+class VulkanModel {
 public:
 	
 
@@ -65,7 +65,7 @@ public:
 	void moveUp();
 	void moveDown();
 
-	void loadModel(glm::vec3& cameraPos);
+	void loadModel();
 
 	glm::vec3 getPhysXAABB();
 	std::vector<Vertex>& getVertices();
@@ -117,6 +117,8 @@ public:
 			vkDestroyImageView(*device, textureStructs[i].textureImageView, nullptr);
 			vkFreeMemory(*device, textureStructs[i].textureImageMemory, nullptr);
 		}
+
+
 
 		/*
 		vkDestroySampler(*device, textureSampler, nullptr);
@@ -171,7 +173,7 @@ private:
 	}
 
 	
-	void setupTextures() {//call after load model
+	void setupTextures() {//call after load model //is called 5 times instead of once
 		//Setup 5 texture maps for PBR material
 		TextureStruct text;
 		std::vector<std::string> maps;

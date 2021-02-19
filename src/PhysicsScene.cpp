@@ -91,5 +91,5 @@ PxScene* PhysicsScene::getScene() {
 }
 
 void PhysicsScene::addRigidBody(PxRigidDynamic& rb) {
-	pImpl->scene->addActor(rb);
+		pImpl->scene->addActor(rb);
 }
